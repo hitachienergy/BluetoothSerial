@@ -96,11 +96,11 @@ var stringToBytes = function(string) {
 }
 
 // read received data up until the chars that define the delimiter
-var readUntil = function(chars) { 
+var readUntil = function(chars) {
 	var dataAsString = bytesToString(receivedBytes);
 	var index = dataAsString.indexOf(chars);
 	var data = "";
-	
+
 	if (index > -1) {
 		data = dataAsString.substring(0, index + chars.length);
 
@@ -108,48 +108,50 @@ var readUntil = function(chars) {
 		var removeBytes = stringToBytes(data);
 		receivedBytes = receivedBytes.slice(removeBytes.length);
 	}
-	
+
 	return data;
 }
 
 // This sends data if we've hit the delimiter
 var	sendDataToSubscriber = function() {
 	var data = readUntil(delimiter);
-	
+
 	if (data && data.length > 0) {
 		subscribeCallback(data, { keepCallback: true });
-		
+
 		// in case there is more data to send
 		sendDataToSubscriber();
 	}
 }
 
 var receiveStringLoop = function (reader) {
-	// read one byte at a time
-	reader.loadAsync(1).done(function (size) {
-		if (size != 1) {
-			bluetoothSerial.disconnect();
-			console.log('The underlying socket was closed before we were able to read the whole data. Client disconnected.');
-			disconnectCallback("Socket closed"); // TODO determine why this isn't working
-			return;
-		}
+	if (socket) {
+		// read one byte at a time
+		reader.loadAsync(1).done(function (size) {
+			if (size != 1) {
+				bluetoothSerial.disconnect();
+				console.log('The underlying socket was closed before we were able to read the whole data. Client disconnected.');
+				disconnectCallback("Socket closed"); // TODO determine why this isn't working
+				return;
+			}
 
-		var byte = reader.readByte();
-		receivedBytes.push(byte);
+			var byte = reader.readByte();
+			receivedBytes.push(byte);
 
-		if (subscribeRawCallback && typeof (subscribeRawCallback) !== "undefined") {
-			subscribeRawCallback(new Uint8Array([byte]), { keepCallback: true });
-		}
+			if (subscribeRawCallback && typeof (subscribeRawCallback) !== "undefined") {
+				subscribeRawCallback(new Uint8Array([byte]), { keepCallback: true });
+			}
 
-		if (subscribeCallback && typeof (subscribeCallback) !== "undefined") {
-			sendDataToSubscriber();
-		}
+			if (subscribeCallback && typeof (subscribeCallback) !== "undefined") {
+				sendDataToSubscriber();
+			}
 
-		WinJS.Promise.timeout().done(function () { return receiveStringLoop(reader); });
-	}, function (error) {
-		console.log('Failed to read the data, with error: ' + error);
-		WinJS.Promise.timeout(1000).done(function () { return receiveStringLoop(reader); });
-	});
+			WinJS.Promise.timeout().done(function () { return receiveStringLoop(reader); });
+		}, function (error) {
+			console.log('Failed to read the data, with error: ' + error);
+			WinJS.Promise.timeout(1000).done(function () { return receiveStringLoop(reader); });
+		});
+	}
 }
 
 module.exports = {
@@ -158,7 +160,7 @@ module.exports = {
 
 		deviceInfo.findAllAsync(
 			Windows.Devices.Bluetooth.Rfcomm.RfcommDeviceService.getDeviceSelector(
-				Windows.Devices.Bluetooth.Rfcomm.RfcommServiceId.serialPort			
+				Windows.Devices.Bluetooth.Rfcomm.RfcommServiceId.serialPort
 			),
 			null
 		).then(function(devices) {
@@ -168,7 +170,7 @@ module.exports = {
 				for (var i = 0; i < devices.length; i++) {
                     // TODO parse MAC address out of the id
 					// TODO see if there's a way to get the correct device name
-					// The windows permission dialog has the correct name  					
+					// The windows permission dialog has the correct name
 					results.push({ name: devices[i].name, id: devices[i].id });
 				}
 				success(results);
@@ -178,7 +180,7 @@ module.exports = {
 			}
 		});
 	},
-	
+
 	connect: function(success, failure, args) {
 		var id = args[0];
 		disconnectCallback = failure;
@@ -187,9 +189,9 @@ module.exports = {
 		rfcomm.RfcommDeviceService.fromIdAsync(id).then(
 			function (service) {
 				if (service === null) {
-					failure("Access to the device is denied because the application was not granted access.");	
+					failure("Access to the device is denied because the application was not granted access.");
 				}
-				else {					
+				else {
 					socket = new sockets.StreamSocket();
 
 					if (service.connectionHostName && service.connectionServiceName) {
@@ -200,13 +202,13 @@ module.exports = {
 							writer = new streams.DataWriter(socket.outputStream);
 							writer.byteOrder = streams.ByteOrder.littleEndian;
 							writer.unicodeEncoding = streams.UnicodeEncoding.utf8;
-							
+
 							reader = new streams.DataReader(socket.inputStream);
 							reader.unicodeEncoding = streams.UnicodeEncoding.Utf8;
 							reader.byteOrder = streams.ByteOrder.littleEndian;
-							
+
 							receiveStringLoop(reader);
-							
+
 							success("Connected.");
 						},
 						function(e){
@@ -222,16 +224,16 @@ module.exports = {
 			}
 		);
 	},
-	
+
 	connectInsecure: function(success, failure, args) {
 		failure("connectInsecure is only available on Android.");
 	},
-	
-	disconnect: function(success, failure, args) {			
+
+	disconnect: function(success, failure, args) {
 		if (writer) {
 			writer.close();
 			writer = null;
-		}		
+		}
 
     	if (reader) {
       		reader.close();
@@ -241,18 +243,18 @@ module.exports = {
 		if (socket) {
 			socket.close();
 			socket = null;
-			
+
 		}
-		
-		success("Device disconnected.");		
+
+		success("Device disconnected.");
 	},
-	
+
 	// TODO find a better way to do this
 	// If there are no RFCOMM devices paired, this reports Bluetooth is disabled
 	isEnabled: function(success, failure, args) {
 		deviceInfo.findAllAsync(
 			Windows.Devices.Bluetooth.Rfcomm.RfcommDeviceService.getDeviceSelector(
-				Windows.Devices.Bluetooth.Rfcomm.RfcommServiceId.serialPort			
+				Windows.Devices.Bluetooth.Rfcomm.RfcommServiceId.serialPort
 			),
 			null
 		).then(function(devices) {
@@ -263,31 +265,31 @@ module.exports = {
 			}
 		});
 	},
-	
+
 	available: function(success, failure, args) {
 		success(buffer.length);
 	},
-	
+
 	read: function(success, failure, args) {
 		var ret = bytesToString(receivedBytes);
 		receivedBytes = [];
 		success(ret);
 	},
-	
+
 	readUntil: function(success, failure, args) {
 		var delim = args[0];
 		console.log(delim);
 		success(readUntil(delim));
 	},
-	
+
 	write: function(success, failure, args) {
 		var data = args[0];
 		var ui8Data = new Uint8Array(data);
-		
+
 		try {
 			writer.writeByte(ui8Data.length);
 			writer.writeBytes(ui8Data);
-			
+
 			// this is where the data is sent
 			writer.storeAsync().done(function () {
 				success("Data sent to the device correctly!");
@@ -298,56 +300,55 @@ module.exports = {
 			console.log("Sending message failed with error: " + error);
 		}
 	},
-	
+
 	subscribe: function(success, failure, args) {
 		delimiter = args[0];
 		subscribeCallback = success;
 	},
-	
+
 	unsubscribe: function(success, failure, args) {
 		delimiter = "";
 		subscribeCallback = null;
 		success("Unsubscribed.");
 	},
-	
+
 	subscribeRaw: function(success, failure, args) {
 		subscribeRawCallback = success;
 	},
-	
+
 	unsubscribeRaw: function(success, failure, args) {
 		subscribeRawCallback = null;
 		success("Unsubscribed from raw data.");
 	},
-	
+
 	clear: function(success, failure, args) {
 		receivedBytes = [];
 		success("Buffer cleared");
 	},
-	
+
 	readRSSI: function(success, failure, args) {
 		failure("Not yet implemented...");
 	},
-	
+
 	showBluetoothSettings: function(success, failure, args) {
 		failure("Not yet implemented...");
 	},
-	
+
 	setDeviceDiscoveredListener: function(success, failure, args) {
 		failure("Not yet implemented...");
 	},
-	
+
 	clearDeviceDiscovered: function(success, failure, args) {
 		failure("Not yet implemented...");
 	},
-	
+
 	setName: function(success, failure, args) {
 		failure("Not yet implemented...");
 	},
-	
+
 	setDiscoverable: function(success, failure, args) {
 		failure("Not yet implemented...");
 	}
 }
 
 require("cordova/exec/proxy").add("BluetoothSerial", module.exports);
-
