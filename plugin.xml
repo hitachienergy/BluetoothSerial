@@ -100,11 +100,11 @@
         </config-file>
 
 	    <config-file target="package.appxmanifest" parent="/Package/Capabilities">
-		    <m2:DeviceCapability Name="bluetooth.rfcomm">
-			    <m2:Device Id="any">
-				    <m2:Function Type="name:serialPort" />
-			    </m2:Device>
-		    </m2:DeviceCapability>
+		    <DeviceCapability Name="bluetooth.rfcomm">
+			    <Device Id="any">
+				    <Function Type="name:serialPort" />
+			    </Device>
+		    </DeviceCapability>
         </config-file>
 
     </platform>
